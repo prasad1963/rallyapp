@@ -4,16 +4,15 @@
 		<title>Custom Rally App for metrics and reporting</title>
 		<script src="/apps/2.0/sdk.js"></script>
 		<script>
-			if(window.addEventListener){ window.addEventListener("load", pageLoadFns, false); }
-			else if(window.attachEvent){ window.attachEvent("onload", pageLoadFns); }
-			else{window.onload = pageLoadFns;}
-
-			var workspace_oid = '__WORKSPACE_OID__';
-			var project_oid = '__PROJECT_OID__';
-			var user_oid = '__USER_OID__';
-			var username_oid = '__USER_NAME__';
-			var project_scoping_up = '__PROJECT_SCOPING_UP__';
-			var project_scoping_down = '__PROJECT_SCOPING_DOWN__';
+			/* 
+				Rally variables
+				Current Workspace ID: __WORKSPACE_OID__
+				Current Project ID: __PROJECT_OID__
+				Current User ID:  __USER_OID__
+				Curent User Name: __USER_NAME__
+				Project Scoping Up: __PROJECT_SCOPING_UP__
+				Project Scoping Down: __PROJECT_SCOPING_DOWN__
+			*/
 
 			/* Setting up Page Element variables and attributes */
 			var labels = {
@@ -21,12 +20,13 @@
 					datesBackwards : 'Please update your dates so as to not be reverse chronological order.',
 					idListEmpty : 'Please include at least one formatted ID.',
 					queryEmpty : 'You have submitted an empty query.',
-					queryContainsNullValue : 'Please check your Query Generator and correct the NULL field(s).',
 					queryParensMismatch : 'You have a mismatch of opening and closing parenthesis in your query.',
+					queryQuotesMismatch : 'You have a mismatch of double-quotes in your query.',
 					storyIdInvalidIdWithId : ' is not a valid Rally story ID.',
 					storyIdInvalidTypeWithId : ' is not a valid Rally story type.',
 					storyStatePickerBackwards : 'Your states are in reverse order.',
 					storyStatePickerDuplicate : 'You must select different states.',
+					zeroCols : 'Please select at least one column.',
 					zeroResults : 'Your search returned no results.'
 				},
 				messages : {
@@ -37,248 +37,10 @@
 				}
 			};
 
-			/* Page-load functions */
-			function pageLoadFns(){}
-
-			/* Custom functions */
-			var messageFn = {
-				alertBox : function(inputMessage){
-					Ext.Msg.alert('Error',inputMessage);
-				},
-				progressBox : function(inputMessage){
-					Ext.MessageBox.show({
-						msg : inputMessage,
-						width : 300,
-						wait : true,
-						waitConfig : { interval : 200 },
-						progress : true
-					});
-				},
-				exit : function(){
-					Ext.MessageBox.hide();
-				}
-			};
-			var utilityFn = {
-				encodeParams :  function(inputObj){
-					var size = Object.keys(inputObj).length;
-					if(size > 0){
-						var resultString = '?';
-						var count = 0;
-						for(var key in inputObj){
-							var delim = (count < (size-1)) ? '&' : '';
-							resultString += key + '=' + inputObj[key] + delim;
-							count++;
-						}
-						return resultString;
-					}else{
-						return false;
-					}
-				},
-				errorsListHtml : function(inputArray){
-					var plural = (inputArray.length == 1) ? '' : 's';
-					var errorMessage = '';
-						errorMessage += 'Please correct the following issue' + plural + ':';
-						errorMessage += '<ol>';
-					for(var i=0;i<inputArray.length;i++){
-						errorMessage += '<li>';
-						errorMessage += inputArray[i];
-						errorMessage += '</li>';
-					}
-						errorMessage += '</ol>';
-					return errorMessage;
-				},
-				dates : {
-					doubleDigitMonthDay : function(input){
-						var inputAsDate = new Date(input);
-						var year = inputAsDate.getFullYear();
-						var month = inputAsDate.getMonth()+1;
-						var date = inputAsDate.getDate();
-
-						var arrayMonth = (month.toString().length < 2) ? '0' + month : month;
-						var arrayDate = (date.toString().length < 2) ? '0' + date : date;
-
-						return [year,arrayMonth,arrayDate];
-					},
-					daysBetween : function(dateArray){
-						if(dateArray.length == 2){
-							var startingDate = utilityFn.dates.toMorning(dateArray[0]);
-							var endingDate = utilityFn.dates.toMorning(dateArray[1]);
-							var difference = (endingDate-startingDate)/86400000;
-							return difference;
-						}else{
-							return false;
-						}
-					},
-					getDateEnds : function(boundaryArray){
-						var startDate = boundaryArray[0];
-						var finalDate = boundaryArray[1];
-						var dateList = {
-							'start' : utilityFn.dates.toMorning(startDate),
-							'end' : []
-						};
-
-						var currentDate = startDate;
-						while (currentDate <= finalDate) {
-							dateList.end.push(utilityFn.dates.toEvening(currentDate));
-							currentDate = currentDate.addDays(1);
-						}
-						return dateList;
-					},
-					toMorning : function(input){
-						var inputAsDate = new Date(input);
-						inputAsDate.setHours(0);
-						inputAsDate.setMinutes(0);
-						inputAsDate.setSeconds(1);
-						inputAsDate.setMilliseconds(0);
-						return inputAsDate;
-					},
-					toEvening : function(input){
-						var inputAsDate = new Date(input);
-						inputAsDate.setHours(23);
-						inputAsDate.setMinutes(59);
-						inputAsDate.setSeconds(59);
-						inputAsDate.setMilliseconds(999);
-						return inputAsDate;
-					},
-					toQueryable : function(input){
-						var inputAsDate = new Date(input);
-						var dateArray = this.doubleDigitMonthDay(inputAsDate);
-						var hours = inputAsDate.getHours();
-						var minutes = inputAsDate.getMinutes();
-						var seconds = inputAsDate.getSeconds();
-						var formattedDate = dateArray.join('-');
-							formattedDate += 'T';
-							formattedDate += hours + ':' + minutes + ':' + seconds + '.000';
-							formattedDate += 'Z';
-						return formattedDate; // Format: YYYY-MM-DDTHH:MM:SS.SSSZ
-					},
-					toSortable : function(input){
-						var inputAsDate = new Date(input);
-						var dateArray = this.doubleDigitMonthDay(inputAsDate);
-						return dateArray.join('/');
-					}
-				},
-				validate : {
-					calendarDirection : function(dateEnds){},
-					columnsExist : function(){},
-					formattedIdType : function(){},
-					formattedIdList : function(){},
-					query : function(){}
-				},
-				validateElementData : {
-					formattedIDCheck : function(itemList){
-						/* Default issue list array (length = 0) */
-						var issuesArray = [];
-
-						/* Valid Rally Story types */
-						var validPrefixes = ['DE','US'];
-
-						/* Iterate through and check for errors */
-						for(var i=0;i<itemList.length;i++){
-							var item = itemList[i];
-							var prefix = item.substring(0,2);
-							var thirtdChar = parseInt(item.substring(2,3));
-
-							if(validPrefixes.indexOf(prefix) < 0){
-								issuesArray.push(item + labels.errors.storyIdInvalidTypeWithId);
-							}
-							if(isNaN(thirtdChar)){
-								issuesArray.push(item + labels.errors.storyIdInvalidIdWithId);
-							}
-						}
-						if(issuesArray.length == 0){
-							returnObj = { result :  true};
-						}else{
-							var errorsList = utilityFn.errorsListHtml(issuesArray);
-							returnObj = { result :  false, message : errorsList };
-						}
-						return returnObj;
-					}
-				},
-				validatePageData : function(){
-					/* Default issue list array (length = 0) */
-					var issuesArray = [];
-
-					/* Check that the date range is not backwards */
-					if( typeof(Ext.getCmp('OpeningDatePicker')) == 'object'){
-						if(Ext.getCmp('OpeningDatePicker').getValue() > Ext.getCmp('ClosingDatePicker').getValue()){
-							issuesArray.push(labels.errors.datesBackwards);
-						}
-					}
-
-					// Free-form query field
-					if( typeof(Ext.getCmp('GeneratedQueryField')) == 'object'){
-						// Check that the query text box is not blank
-						var query = Ext.getCmp('GeneratedQueryField').getValue().trim();
-						Ext.getCmp('GeneratedQueryField').setValue(query);
-						if(query == ''){
-							issuesArray.push(labels.errors.queryEmpty);
-						}
-						// Check that the query text box does not have a mismatch of ( and ) characters
-						var openParens = query.split('(');
-						var closedParens = query.split(')');
-						if(openParens.length !== closedParens.length){
-							issuesArray.push(labels.errors.queryParensMismatch);
-						}
-						if(query.indexOf(' null ') >= 0){
-							issuesArray.push(labels.errors.queryContainsNullValue);
-						}
-					}
-
-					/* State Story Drop Downs 
-					if(Ext.getCmp(pageElementTextData.storyStatePicker.id)){
-*/
-						/* Check that the opening and closing values are not the same 
-						var openingState = Ext.getCmp(pageElementTextData.storyStatePicker.opening.id);
-						var openingStateValue = openingState.getValue();
-						var openingStateRecord = openingState.findRecordByValue(openingStateValue);
-						var openingStateIndex = openingState.getStore().indexOf(openingStateRecord);
-
-						var closingState = Ext.getCmp(pageElementTextData.storyStatePicker.closing.id);
-						var closingStateValue = closingState.getValue();
-						var closingStateRecord = closingState.findRecordByValue(closingStateValue);
-						var closingStateIndex = closingState.getStore().indexOf(closingStateRecord);
-
-						if(openingStateIndex === closingStateIndex){
-							issuesArray.push(labels.errors.storyStatePickerDuplicate);
-						}
-						if(openingStateIndex > closingStateIndex){
-							issuesArray.push(labels.errors.storyStatePickerBackwards);
-						}
-					}
-*/
-					/* Check the length of the issues array; if it is greater than zero, render messages in a Rally alert box */
-					if(issuesArray.length == 0){
-						returnObj = { result :  true};
-					}else{
-						var errorsList = utilityFn.errorsListHtml(issuesArray);
-						returnObj = { result :  false, message : errorsList };
-					}
-					return returnObj;
-				}
-			};
-			Date.prototype.addDays = function(days){
-				// To support the utility function for creating a "dates between" array
-				var date = new Date(this.valueOf());
-				date.setDate(date.getDate() + days);
-				return date;
-			}
-			Array.prototype.unique = function() {
-				var unique = [];
-				for(var i=0;i<this.length;i++){
-					var current = this[i];
-					if(unique.indexOf(current) < 0){ unique.push(current); }
-				}
-				return unique;
-			}
-			Array.prototype.trimArray = function() {
-				var trimmed = [];
-				for(var i=0;i<this.length;i++){
-					var current = this[i];
-					if(current.length > 0){ trimmed.push(current); }
-				}
-				return trimmed;
-			}
+			/* Rally App component initialization */
+			Rally.onReady(function() {
+				Rally.launchApp('CustomApp',{ name: 'Custom Data Export App' });
+			});
 
 			/* Rally App component definitions */
 			Ext.define('CustomApp',{
@@ -293,18 +55,9 @@
 					/* Custom HTML elements in App frame */
 					this.add({
 						items : [
-							{
-								xtype : 'container',
-								id : 'report-selection-container'
-							},
-							{
-								xtype : 'container',
-								id : 'report-input-container'
-							},
-							{
-								xtype : 'container',
-								id : 'report-output-container'
-							}
+							{ xtype : 'container', id : 'report-selection-container' },
+							{ xtype : 'container', id : 'report-input-container' },
+							{ xtype : 'container', id : 'report-output-container' }
 						]
 					});
 
@@ -331,7 +84,7 @@
 									},
 									{
 										boxLabel : 'Burndown Chart and Data Export',
-										afterSubTpl : 'Generate a burndown chart and exportable grid of hours remaining, based off stories and defects generated via query.',
+										afterSubTpl : 'Generate a burndown chart and exportable grid of hours remaining, based off tasks generated via query.',
 										name : 'request-type',
 										inputValue : 'BurndownData',
 										padding : 10
@@ -391,6 +144,17 @@
 				},
 
 				component : {
+					/*
+						DatePicker
+						Rally Drop Down
+						ColumnPicker
+						Submit button
+						ExportCSV
+						QueryBuilder
+						Checkbox (nix)
+						TextArea (nix)
+						TimePicker
+					*/
 					artifactSearchBox : function(options){
 						var defaults = {
 							xtype : 'rallyartifactsearchcombobox',
@@ -494,7 +258,6 @@
 											var componentList = getModelComponents(schemaType,field);
 											if(componentList){
 												parent.add(componentList);
-											//	for(var i=0;i<componentList.length;i++){ parent.add(componentList[i]); }
 												updateGeneratedQueryItems.operator('QueryBuilderParams');
 												// updateGeneratedQueryItems.adder('QueryBuilderParams');
 											}else{
@@ -507,7 +270,7 @@
 						};
 						function getModelType(artifact,value){
 							var rallyModelObj = Rally.data.wsapi.ModelFactory._modelCache;
-							var artifactObj = rallyModelObj['rally.domain.v2.0.project.' + project_oid + '.' + artifact];
+							var artifactObj = rallyModelObj['rally.domain.v2.0.project.' + __PROJECT_OID__ + '.' + artifact];
 							var typeDefs = artifactObj.typeDef.Attributes;
 							for(var i=0;i<typeDefs.length;i++){
 								if(typeDefs[i].ElementName == value){
@@ -516,7 +279,6 @@
 							}
 						}
 						function getModelComponents(key,field){
-							//console.log({ key : key, field : field });
 							if(key === 'undefined'){
 								// Dependencies
 								return false;
@@ -551,19 +313,9 @@
 									var value = rallyApp.component.fieldValueDropDown({ field : field });
 									break;
 								case 'collection' :
-									// Attachements
-									// Changesets
-									// Children
-									// Defects
-									// Discussion
-									// Milestones
-									// Predecessors
-									// Successors
-									// Tasks
-									// TestCases
+									/* Attachements,Changesets,Children,Defects,Discussion,Milestones,Predecessors,Successors,Tasks,TestCases*/
 									switch(field){
-// NEED TO DO: This creates an obj in the Search Query
-										case 'Tags' :
+										case 'Tags' : /* NEED TO DO: This creates an obj in the Search Query */
 											var operand = Ext.create('Ext.form.field.ComboBox',{
 												displayField: 'val',
 												store: containsStore,
@@ -774,8 +526,7 @@
 								var addParamButtons = Ext.getCmp(wrapper).query('container [hiddenName="adder"]');
 							//	for(var i=0;i<addParamButtons.length;i++){ addParamButtons[i].disable(); }
 							//	addParamButtons[addParamButtons.length-1].enable();
-
-//								console.log(addParamButtons);
+							//	console.log(addParamButtons);
 							},
 							remover : function(wrapper){
 								var removalButtons = Ext.getCmp(wrapper).query('container [hiddenName="remover"]');
@@ -823,7 +574,7 @@
 									}
 									var key = itemArray[k][0].replace('c_','');
 									var operand = itemArray[k][1];
-									var value = (itemArray[k][2] instanceof Date) ? utilityFn.dates.toQueryable(itemArray[k][2]) : itemArray[k][2];
+									var value = (itemArray[k][2] instanceof Date) ? utilityFn.dates.toISO(itemArray[k][2]) : itemArray[k][2];
 									var closing = (k == 0) ? ')' : '))';
 									var operator = (itemArray[k][3] == null) ? '' : ' ' + itemArray[k][3] + ' ';
 									queryArray.push( opening + key + ' ' + operand + ' "' + value + '"' + closing + operator);
@@ -897,16 +648,6 @@
 						return completeItemDetails;
 					},
 
-					querySyntaxHelp : function(){
-						var completeItemDetails = {
-							xtype : 'container',
-							html : '<p>For query building assistance, please consult the following reference:<br />' +
-									'<a href="https://help.rallydev.com/grid-queries" target="_blank">https://help.rallydev.com/grid-queries</a><br />' +
-									'<a href="https://help.rallydev.com/use-grid-app-queries#rules" target="_blank">https://help.rallydev.com/use-grid-app-queries#rules</a></p>'
-						}
-						return completeItemDetails;
-					},
-
 					// Drop down list for Releases
 					releaseSearchBox : function(options){
 						var defaults = {
@@ -920,12 +661,13 @@
 
 					// Create submit button for search query
 					submit : function(altText){
+						var reportType = Ext.getCmp('report-type').getForm().getValues()['request-type'];
 						var submitButton = {
 							xtype : 'rallybutton',
 							text : (altText) ? altText : 'Submit',
 							listeners : {
 								click : function(){
-									collectData();
+									prepareReportQuery(reportType);
 								}
 							},
 						};
@@ -971,7 +713,7 @@
 					userSearchBox : function(options){
 						var defaults = {
 							xtype : 'rallyusersearchcombobox',
-							project : '/project/' + project_oid
+							project : '/project/' + __PROJECT_OID__
 						}
 						var completeItemDetails = {};
 						for (var key in defaults) { completeItemDetails[key] = defaults[key]; }
@@ -981,8 +723,8 @@
 				},
 
 				/* Rally functinos for creating app objects */
-				reportInputs : {
-					acceptedDefects : function(){
+				reportDetails : {
+					AcceptedDefectsReport : function(){
 						var rallyApp = Rally.getApp('CustomApp');
 						var openingDate = rallyApp.component.dateField({
 							fieldLabel : 'Opening Date',
@@ -992,7 +734,7 @@
 							fieldLabel : 'Closing Date',
 							id : 'ClosingDatePicker'
 						});
-						var colDefaultsValues = ['AcceptedDate','ClosedDate','CreationDate','FormattedID','Name','Release','Resolution'];
+						var colDefaultsValues = ['CreationDate','ClosedDate','FormattedID','Name','Release','Resolution'];
 						var columnPicker = rallyApp.component.columnPicker({
 							id : 'ColumnPicker',
 							modelTypes : ['Defect'],
@@ -1062,7 +804,7 @@
 						var submitButton = rallyApp.component.submit();
 						return [selections,submitButton];
 					},
-					burndown : function(){
+					BurndownData : function(){
 						var rallyApp = Rally.getApp('CustomApp');
 						var openingDate = rallyApp.component.dateField({
 							fieldLabel : 'Opening Date',
@@ -1075,6 +817,40 @@
 						var weekendCheckbox = {
 							xtype : 'container',
 							items: [
+								{
+									xtype : 'radiogroup',
+									defaultType : 'radiofield',
+									defaults : { flex : 1 },
+									fieldLabel : 'Query for',
+									id : 'BurndownQueryType',
+									items : [
+										{
+											boxLabel : 'Defects and Stories',
+											name : 'query-type',
+											inputValue : 'storiesAndDefects',
+											padding : 10,
+											checked : true
+										},
+										{
+											boxLabel : 'Defects',
+											name : 'query-type',
+											inputValue : 'defects',
+											padding : 10
+										},
+										{
+											boxLabel : 'Stories',
+											name : 'query-type',
+											inputValue : 'stories',
+											padding : 10
+										},
+										{
+											boxLabel : 'Tasks',
+											name : 'query-type',
+											inputValue : 'tasks',
+											padding : 10
+										}
+									]
+								},
 								{
 									xtype : 'fieldcontainer',
 									fieldLabel : 'Include Weekends',
@@ -1093,21 +869,7 @@
 						var submitButton = rallyApp.component.submit();
 						return [openingDate,closingDate,weekendCheckbox,queryBuilder,submitButton];
 					},
-					daysBetween : function(){
-						var rallyApp = Rally.getApp('CustomApp');
-						var openingDate = rallyApp.component.dateField({
-							fieldLabel : 'Opening Date',
-							id : 'OpeningDatePicker'
-						});
-						var closingDate = rallyApp.component.dateField({
-							fieldLabel : 'Closing Date',
-							id : 'ClosingDatePicker'
-						});
-						var queryBuilder = rallyApp.component.basicQueryBuilder();
-						var submitButton = rallyApp.component.submit();
-						return [openingDate,closingDate,queryBuilder,submitButton];
-					},
-					storyChanges : function(){
+					StoryStateChanges : function(){
 						var rallyApp = Rally.getApp('CustomApp');
 						var openingDate = rallyApp.component.dateField({
 							fieldLabel : 'Opening Date',
@@ -1188,7 +950,7 @@
 						var submitButton = rallyApp.component.submit();
 						return [selections,queryBuilder,submitButton];
 					},
-					storySnapshot : function(){
+					StoryStateSnapshot : function(){
 						var rallyApp = Rally.getApp('CustomApp');
 						var datePicker = rallyApp.component.dateField({
 							fieldLabel : 'Date and time',
@@ -1310,7 +1072,7 @@
 						var submitButton = rallyApp.component.submit();
 						return [selections,queryBuilder,submitButton];
 					},
-					taskCreation : function(){
+					TaskCreation : function(){
 						var rallyApp = Rally.getApp('CustomApp');
 
 						var formattedData = createStoreData.taskDefaults();
@@ -1350,7 +1112,7 @@
 							cls : 'textarea',
 							grow : false,
 							fieldLabel : 'Comma-Separated Carriage Return-separated list items',
-							emptyText : "e.g.\n\tUS1901,US2124,DE12182\nor\n\tUS1901\n\tUS2124\n\tDE12182"
+							emptyText : 'e.g.\n\tUS1901,US2124,DE12182\nor\n\tUS1901\n\tUS2124\n\tDE12182'
 						};
 						var submitButton = rallyApp.component.submit('Create CSV');
 						return [gridPanel,storyItemBox,submitButton];
@@ -1358,92 +1120,412 @@
 				}
 			});
 
-			/* Rally App component initialization */
-			Rally.onReady(function() {
-				Rally.launchApp('CustomApp',{ name: 'Custom Data Export App' });
-			});
-
-			/* Control for rendering page content */
-			function renderContent(objects,location){
-				Ext.getCmp(location).removeAll();
-				if(objects){ Ext.getCmp(location).add(objects); }
-				Ext.getCmp(location).doLayout();
+			// Function for checking the API results for errors and alerting them
+			function apiResultErrorCheck(returnObj,callback){
+				if(returnObj.QueryResult.Errors.length > 0){
+					var errorMessageList = utilityFn.errorsListHtml( returnObj.QueryResult.Errors.unique() );
+					messageFn.alertBox(errorMessageList);
+					return false;
+				}else{
+					callback();
+				}
 			}
-			/* Collecting Rally objects for rendering */
+			// Object conversions
+			function apiResultCleanup(dataObj){
+				var fieldsForDates = [
+					'_ValidFrom',
+					'_ValidTo',
+					'AcceptedDate',
+					'c_DevBeginDate',
+					'c_DevEndDate',
+					'ClosedDate',
+					'CreationDate',
+					'InProgressDate',
+					'LastUpdateDate',
+					'OpenedDate'
+				];
+				for(var i=0;i<dataObj.length;i++){
+					// Sort dates
+					for(var f=0;f<fieldsForDates.length;f++){
+						if(fieldsForDates[f] in dataObj[i]){
+							dataObj[i][fieldsForDates[f]] = utilityFn.dates.toSortable(new Date(dataObj[i][fieldsForDates[f]]) );
+						}
+					}
+					// Hydrate objects to ref name
+					for(var key in dataObj[i]){
+						if( typeof(dataObj[i][key]) == 'object' ){
+							dataObj[i][key] = ( (dataObj[i][key] !== null)&&(dataObj[i][key].hasOwnProperty('_refObjectName')) ) ? dataObj[i][key]._refObjectName : '';
+						}
+					}
+				}
+				return dataObj;
+			};
+			// Prep data store object based on Selected Custom COlumns
+			function prepStoreObj(manualCols){
+				var selectedCols = Ext.getCmp('ColumnPicker').getValue();
+				var result = {
+					headers : [],
+					fields : [],
+					values : []
+				};
+				for(var i=0;i<selectedCols.length;i++){
+					result.headers.push({ text : selectedCols[i].data.displayName, dataIndex : selectedCols[i].data.name});
+					result.fields.push(selectedCols[i].data.name);
+				}
+				for(var i=0;i<manualCols.length;i++){
+					//if( manualCols[i].hasOwnProperty('editor') ){
+					//	result.headers.push(manualCols[i]);
+					//}
+					result.headers.push({ text : manualCols[i].text, dataIndex : manualCols[i].dataIndex});
+					result.fields.push(manualCols[i].dataIndex);
+				}
+				return result;
+			}
+			// Create results grid
+			function createGridFromStore(dataStore,options){
+				var gridPanelSet = [];
+				var gridData = Ext.create('Ext.data.Store',{
+					storeId : (options.hasOwnProperty('id')) ? options.id : 'GenericStoreId',
+					fields : dataStore.fields,
+					data : { 'items' : dataStore.values },
+					proxy : {
+						type : 'memory',
+						reader : {
+							type : 'json',
+							root : 'items'
+						}
+					}
+				});
+				var columnSettings = (options.hasOwnProperty('settings')) ? options.settings : {};
+				columnSettings.flex = 1;
+
+				var gridPanel = Ext.create('Ext.grid.Panel',{
+					title : (options.hasOwnProperty('headline')) ? options.headline : null,
+					store : (options.hasOwnProperty('id')) ? options.id : 'GenericStoreId',
+					columns : {
+						items : dataStore.headers,
+						defaults : columnSettings
+					}
+				});
+				gridPanelSet.push(gridPanel);
+				if(options.hasOwnProperty('exportToCSV')&&(options.exportToCSV == true)){
+					var buttonbar = csv.getExtJsBtnBar(gridData);
+					gridPanelSet.push(buttonbar);
+				}
+				return gridPanelSet;
+			}
+			// Render report options
 			function toggleReportOptions(field,newValue,oldValue){
 				var rallyApp = Rally.getApp('CustomApp');
-				var requestedReport = newValue['request-type'];
-				var detailsContainer = 'report-input-container';
-				var outputContainer = 'report-output-container';
+				var reportType = newValue['request-type'];
 
-				switch(requestedReport){
-					case 'AcceptedDefectsReport' : 
-						var obj = rallyApp.reportInputs.acceptedDefects();
-						break;
-					case 'BurndownData' :
-						var obj = rallyApp.reportInputs.burndown();
-						break;
-					case 'DaysBetween' :
-						var obj = rallyApp.reportInputs.daysBetween();
-						break;
-					case 'StoryStateChanges' :
-						var obj = rallyApp.reportInputs.storyChanges();
-						break;
-					case 'StoryStateSnapshot' :
-						var obj = rallyApp.reportInputs.storySnapshot();
-						break;
-					case 'TaskCreation' :
-						var obj = rallyApp.reportInputs.taskCreation();
-						break;
-					default :
-						var obj = false;
-				}
-				renderContent(obj,detailsContainer);
-				renderContent(false,outputContainer); // set to clear out the output div on toggle
+				var optionsObj = rallyApp.reportDetails[reportType]();
+				renderContent(optionsObj,'report-input-container');
+				renderContent(false,'report-output-container'); // set to clear out the output div on toggle
 			}
-			function collectData(){
-				/* Loading modal box */
+			// Initiate data collection and validation before performing the core fetch and rendering functions
+			function prepareReportQuery(reportType){
+				// Render Progress Modal
 				messageFn.progressBox(labels.messages.gettingUserStories);
-				validDataCheck = utilityFn.validatePageData();
-				if(validDataCheck.result == true){
-				}else{
-					messageFn.alertBox(validDataCheck.message);
+
+				// Collect report data based on 'reportType', in specific structure (opportunity for selected cols, query, etc)
+				var dataObj = collectData[reportType]();
+
+				// Collect any error messages for the report options
+				var errorsList = validateData[reportType](dataObj);
+				if(errorsList.length > 0){
+					var errorMessageList = utilityFn.errorsListHtml(errorsList.unique());
+					messageFn.alertBox(errorMessageList);
 					return false;
+				}else{
+					runReportQuery[reportType](dataObj);
 				}
-
-				/* Collect data values */
-				var openingDate = ( typeof(Ext.getCmp('OpeningDatePicker')) == 'object' ) ? Ext.getCmp('OpeningDatePicker').getValue() : null;
-				var closingDate = ( typeof(Ext.getCmp('ClosingDatePicker')) == 'object' ) ? Ext.getCmp('ClosingDatePicker').getValue() : null;
-			//	var singleDate = ( typeof(Ext.getCmp('DatePicker')) == 'object' ) ? Ext.getCmp('DatePicker').getValue() : null;
-				var searchQuery = ( typeof(Ext.getCmp('GeneratedQueryField')) == 'object' ) ? Ext.getCmp('GeneratedQueryField').getValue() : null;
-				var defectPriority = ( typeof(Ext.getCmp('RallyField_Priority')) == 'object' ) ? Ext.getCmp('RallyField_Priority').getValue() : null;
-				var defectEnvironment = ( typeof(Ext.getCmp('RallyField_Environment')) == 'object' ) ? Ext.getCmp('RallyField_Environment').getValue() : null;
-
-				if(openingDate !== null){
-					var dates = utilityFn.dates.getDateEnds([openingDate,closingDate]);
-					var queryFormattedDateStart = openingDate.getFullYear() + '-' + (openingDate.getMonth()+1) + '-' + openingDate.getDate();
-					var queryFormattedDateEnd = closingDate.getFullYear() + '-' + (closingDate.getMonth()+1) + '-' + closingDate.getDate();
+			}
+			// Report-specific page data collection
+			var collectData = {
+				AcceptedDefectsReport : function(){
+					var result = {
+						columns : Ext.getCmp('ColumnPicker').getValue(),
+						dates : {
+							closing : utilityFn.dates.toEvening(Ext.getCmp('ClosingDatePicker').getValue()),
+							opening : utilityFn.dates.toMorning(Ext.getCmp('OpeningDatePicker').getValue())
+						},
+						environment : Ext.getCmp('RallyField_Environment').getValue(),
+						priority : Ext.getCmp('RallyField_Priority').getValue(),
+					};
+					return result;
+				},
+				BurndownData : function(){
+					var result = {
+						dates : {
+							closing : utilityFn.dates.toEvening(Ext.getCmp('ClosingDatePicker').getValue()),
+							opening : utilityFn.dates.toMorning(Ext.getCmp('OpeningDatePicker').getValue()),
+							weekends : (Ext.getCmp('WeekendPicker')) ? Ext.getCmp('WeekendPicker').getValue() : false
+						},
+						query : Ext.getCmp('GeneratedQueryField').getValue().trim(),
+						type : Ext.getCmp('BurndownQueryType').getValue()['query-type']
+					};
+					return result;
+				},
+				StoryStateChanges : function(){
+					var result = {
+						columns : Ext.getCmp('ColumnPicker').getValue(),
+						dates : {
+							closing : utilityFn.dates.toEvening(Ext.getCmp('ClosingDatePicker').getValue()),
+							opening : utilityFn.dates.toMorning(Ext.getCmp('OpeningDatePicker').getValue())
+						},
+						states : {
+							closing : Ext.getCmp('RallyField_StateTo').getValue(),
+							opening : Ext.getCmp('RallyField_StateFrom').getValue()
+						},
+						query : Ext.getCmp('GeneratedQueryField').getValue().trim()
+					};
+					return result;
+				},
+				StoryStateSnapshot : function(){
+					var result = {
+						columns : Ext.getCmp('ColumnPicker').getValue(),
+						dates : {
+							date : utilityFn.dates.toISO(Ext.getCmp('HiddenDateTimeObj').getValue())
+						},
+						query : Ext.getCmp('GeneratedQueryField').getValue().trim()
+					};
+					return result;
+				},
+				TaskCreation : function(){
+					var textboxValue = Ext.getCmp('StoryIdList').getValue().trim().replace(/\n/g,',').replace(/ /g,'');
+					var idArray = textboxValue.toUpperCase().split(',').unique().trimArray();
+					var result = {
+						ids : idArray,
+						store : Ext.StoreMgr.lookup('TaskTemplateStore')
+					};
+					return result;
 				}
-			//	if(singleDate !== null){
-			//		var queryFormattedDate = singleDate.getFullYear() + '-' + singleDate.getMonth() + '-' + singleDate.getDate() + 'T' + singleDate.getHours() + ':' + singleDate.getMinutes() + ':' + singleDate.getSeconds();
-			//	}
+			};
+			// Report-specific page data validation
+			var validateData = {
+				_formattedIdChecks : function(ids){
+					var errorsList = [];
+					var validPrefixes = ['DE','US'];
 
-				/* Get User Story IDs for the query */
-				messageFn.progressBox(labels.messages.gettingStoryDetails);
+					if(ids.length <= 0){ errorsList.push(labels.errors.idListEmpty); }
+					for(var i=0;i<ids.length;i++){
+						var item = ids[i];
+						var prefix = item.substring(0,2);
+						var thirtdChar = parseInt(item.substring(2,3));
 
-				var reportType = Ext.getCmp('report-type').getForm().getValues()['request-type'];
-				switch(reportType){
-					case 'AcceptedDefectsReport' :
-						searchQuery = '((((AcceptedDate >= "' + queryFormattedDateStart + '") AND (AcceptedDate <= "' + queryFormattedDateEnd + '")) AND (Environment = "' + defectEnvironment + '")) AND (Priority = "' + defectPriority + '"))';
-						getDataFor.defects(searchQuery,function(returnObj){
-							if(returnObj.QueryResult.Errors.length > 0){
-								var errorMessageList = utilityFn.errorsListHtml( returnObj.QueryResult.Errors.unique() );
-								messageFn.alertBox(errorMessageList);
-							}else{
-								lookback.acceptedDefects(returnObj.QueryResult.Results);
+						if(validPrefixes.indexOf(prefix) < 0){
+							errorsList.push(item + labels.errors.storyIdInvalidTypeWithId);
+						}
+						if(isNaN(thirtdChar)){
+							errorsList.push(item + labels.errors.storyIdInvalidIdWithId);
+						}
+					}
+					return errorsList;
+				},
+				_queryChecks : function(queryString){
+					var errorsList = [];
+					var numParensOpen =  (queryString.indexOf('(') >= 0) ? queryString.match(/\(/gi).length : false;
+					var numParensClosed =  (queryString.indexOf(')') >= 0) ? queryString.match(/\)/gi).length : false;
+					var numQuotes = queryString.match(/\"/gi).length;
+
+					if(queryString == ''){ errorsList.push(labels.errors.queryEmpty); }
+					if(numParensOpen !== numParensClosed){ errorsList.push(labels.errors.queryParensMismatch); }
+					if(numQuotes%2 !== 0){ errorsList.push(labels.errors.queryQuotesMismatch); }
+					return errorsList;
+				},
+				AcceptedDefectsReport : function(dataObj){
+					var errorsList = [];
+					var opening = Date.parse(dataObj.dates.opening);
+					var closing = Date.parse(dataObj.dates.closing);
+
+					if(opening > closing){ errorsList.push(labels.errors.datesBackwards); }
+					if(dataObj.columns.length <= 0){ errorsList.push(labels.errors.zeroCols); }
+					return errorsList;
+				},
+				BurndownData : function(dataObj){
+					var errorsList = [];
+					var opening = Date.parse(dataObj.dates.opening);
+					var closing = Date.parse(dataObj.dates.closing);
+
+					if(opening > closing){ errorsList.push(labels.errors.datesBackwards); }
+					var queryErrors = this._queryChecks(dataObj.query);
+					return errorsList.concat(queryErrors);
+				},
+				StoryStateChanges : function(dataObj){
+					var errorsList = [];
+					var opening = Date.parse(dataObj.dates.opening);
+					var closing = Date.parse(dataObj.dates.closing);
+
+					if(opening > closing){ errorsList.push(labels.errors.datesBackwards); }
+					if(dataObj.columns.length <= 0){ errorsList.push(labels.errors.zeroCols); }
+					var queryErrors = this._queryChecks(dataObj.query);
+					return errorsList.concat(queryErrors);
+				},
+				StoryStateSnapshot : function(dataObj){
+					var errorsList = [];
+
+					if(dataObj.columns.length <= 0){ errorsList.push(labels.errors.zeroCols); }
+					var queryErrors = this._queryChecks(dataObj.query);
+					return errorsList.concat(queryErrors);
+				},
+				TaskCreation : function(dataObj){
+					var errorsList = [];
+
+					var idListErrors = this._formattedIdChecks(dataObj.ids)
+					return errorsList.concat(idListErrors);
+				}
+			};
+			// Core report-specific functionality once input data has been collected and validated
+			var runReportQuery = {
+				AcceptedDefectsReport : function(dataObj){
+					var manualQueryParams = [
+						{
+							key : 'AcceptedDate',
+							operand : '>=',
+							value : utilityFn.dates.toISO(dataObj.dates.opening),
+							operator : 'AND'
+						},
+						{
+							key : 'AcceptedDate',
+							operand : '<=',
+							value : utilityFn.dates.toISO(dataObj.dates.closing),
+							operator : 'AND'
+						},
+						{
+							key : 'Environment',
+							operand : '=',
+							value : dataObj.environment,
+							operator : 'AND'
+						},
+						{
+							key : 'Priority',
+							operand : '=',
+							value : dataObj.priority,
+							operator : 'AND'
+						}
+					];
+					var formattedQuery = utilityFn.query.create(manualQueryParams);
+					getDataFor.defects(formattedQuery,function(defectList){
+						apiResultErrorCheck(defectList,function(){
+							nextSteps(defectList);
+						})
+					});
+
+					function nextSteps(defectList){
+						if(defectList.length == 0){
+							renderContent({ html : '<p>' + labels.errors.zeroResults + '</p>' },'report-output-container');
+							messageFn.exit();
+							return false;
+						}
+						var manualCols = [
+							{ text : 'Days Active', dataIndex : 'DaysActive'},
+							{ text : 'URL', dataIndex : 'Url'}
+						];
+						var dataStore = prepStoreObj(manualCols);
+						var dataList = apiResultCleanup(defectList.QueryResult.Results);
+						for(var d=0;d<dataList.length;d++){
+							var lineItem = {};
+							for(var k=0;k<dataStore.fields.length;k++){
+								var key = dataStore.fields[k];
+								var val = dataList[d][key];
+								lineItem[key] = val;
 							}
-						});
-						break;
+							// Manual column values
+							lineItem['DaysActive'] = utilityFn.dates.daysBetween([lineItem.CreationDate,lineItem.ClosedDate]);
+							lineItem['Url'] = '<a href="/#/' + __PROJECT_OID__ + 'd/search?keywords=' +  lineItem.FormattedID + '" target="_blank">' +  lineItem.FormattedID + '</a>';
+
+							// Push the object into the return array
+							dataStore.values.push(lineItem);
+						}
+
+						var gridOptions = {
+							headline : 'Accepted defects by date',
+							id : 'AcceptedDefectsReport',
+							settings : {
+								sortable : true,
+								hideable : true,
+								selectable : true
+							},
+							exportToCSV : true
+						};
+						var gridSet = createGridFromStore(dataStore,gridOptions);
+						renderContent(gridSet,'report-output-container');
+
+						messageFn.exit();
+					}
+				},
+				BurndownData : function(dataObj){
+					dataObj.dates.ends = utilityFn.dates.getDateEnds([dataObj.dates.opening,dataObj.dates.closing],dataObj.dates.weekends);
+					getDataFor[dataObj.type](dataObj.query,function(returnObj){
+						apiResultErrorCheck(returnObj,function(){
+							// Collect ObjectIDs from results set
+							dataObj.objectIDs = [];
+							var results = returnObj.QueryResult.Results;
+							for(var i=0;i<results.length;i++){
+								dataObj.objectIDs.push({ 'ObjectID' : results[i].ObjectID});
+							}
+
+							// Create lookback search settings
+							var hoursVar = (dataObj.type === 'tasks') ? 'ToDo' : 'TaskRemainingTotal';
+							//var fieldsVar = ['ObjectID','Name','FormattedID'];
+							var lookbackObj = {
+								fields : ['ObjectID','Name','FormattedID','TaskRemainingTotal','ToDo'],
+								find : {
+									'$or' : dataObj.objectIDs,
+									[hoursVar] : { '$gt' : 0 }
+								}
+							};
+
+							// Set up couter to capture all daily entries
+							var counterStep = 0;
+							var counterStop = dataObj.dates.ends.length;
+
+							// Collect Daily Burndown data, grouped by sortable date
+							var resultsArray = [];
+							for(var d=0;d<dataObj.dates.ends.length;d++){
+								lookbackObj.find['__At'] = utilityFn.dates.toISO(dataObj.dates.ends[d]);
+								lookback.snapshot(lookbackObj,function(result){
+									console.log(result);
+									//var displayDate = utilityFn.dates.toSortable(dataObj.dates.ends[d]);
+									var displayDate = dataObj.dates.ends[d];
+									var hoursRemaining = 0;
+									for(var k=0;k<result.Results.length;k++){
+										var storyHoursRemaining = result.Results[k][hoursVar];
+										console.log(storyHoursRemaining);
+										hoursRemaining+storyHoursRemaining;
+									}
+									resultsArray.push({ date : displayDate, hours : hoursRemaining });
+									counterStep++;
+									if(counterStep >= counterStop){ collectDayData(resultsArray); }
+								});
+							}
+
+							// Execute once lookback is complete for all days
+							function collectDayData(testData){
+								messageFn.exit();
+								console.log(testData);
+							}
+							
+						})
+					});
+				},
+				StoryStateChanges : function(dataObj){
+					console.log(dataObj);
+					messageFn.exit();
+				},
+				StoryStateSnapshot : function(dataObj){
+					console.log(dataObj);
+					messageFn.exit();
+				},
+				TaskCreation : function(dataObj){
+					console.log(dataObj);
+					messageFn.exit();
+				}
+			};
+
+				/*
+				switch(reportType){
 					case 'BurndownData' :
 						getDataFor.storiesAndDefects(searchQuery,function(returnObj){
 							if(returnObj.QueryResult.Errors.length > 0){
@@ -1469,17 +1551,14 @@
 						});
 						break;
 					case 'StoryStateSnapshot' :
-						var asOfDate = utilityFn.dates.toQueryable(Ext.getCmp('HiddenDateTimeObj').getValue());
+						var asOfDate = utilityFn.dates.toISO(Ext.getCmp('HiddenDateTimeObj').getValue());
 						var queryPrepend = '(';
 						var queryAppend = ' AND (CreationDate <= "' + asOfDate + '"))';
-					//	console.log(searchQuery);
-					//	console.log(queryPrepend + searchQuery + queryAppend);
 						getDataFor.storiesAndDefects(searchQuery,function(returnObj){
 							if(returnObj.QueryResult.Errors.length > 0){
 								var errorMessageList = utilityFn.errorsListHtml( returnObj.QueryResult.Errors.unique() );
 								messageFn.alertBox(errorMessageList);
 							}else{
-								//console.log(returnObj);
 								lookback.stateSnapshot(returnObj.QueryResult.Results);
 							}
 						});
@@ -1597,13 +1676,12 @@
 						}
 						break;
 					default :
-						console.log(reportType);
 						messageFn.exit();
 						return false;
 				}
-			}
+			}*/
 
-			/* Create Store for WSAPI connection */
+			/* Get item IDs for a given query */
 			var getDataFor = {
 				_ajax : function(inputQuery,callback,options){
 					var results = [];
@@ -1613,7 +1691,7 @@
 					function ajaxLoop(n){
 						var baseUrl = '/slm/webservice/v2.0/' + options.apiCall;
 						var urlObj = {
-							workspace : '/slm/webservice/v2.0/workspace/' + workspace_oid,
+							workspace : '/slm/webservice/v2.0/workspace/' + __WORKSPACE_OID__,
 							query : encodeURIComponent(inputQuery),
 							// WHERE ACCEPTED DATE == NULL or later than Start date
 							order : '',
@@ -1703,6 +1781,13 @@
 						},defectOptions);
 					},storyOptions);
 				},
+				tasks : function(inputQuery,callback){
+					var options = {
+						apiCall : 'task',
+						type : 'task'
+				};
+					this._ajax(inputQuery,callback,options);
+				},
 				users : function(inputQuery,callback){
 					var options = {
 						apiCall : 'user',
@@ -1723,39 +1808,7 @@
 					'Resolution',
 					'ScheduleState'
 				],
-				acceptedDefects : function(storyList){
-					var manualCols = Ext.getCmp('ColumnPicker').getValue();
-					var includedFields = [];
-					for(var m=0;m<manualCols.length;m++){
-						var exists = false;
-						var manualEntry = {
-							text : manualCols[m].data.displayName,
-							dataIndex : manualCols[m].data.name
-						}
-						for(var i=0;i<includedFields.length;i++){
-							if(manualEntry.dataIndex === includedFields[i].dataIndex){
-								exists = true;
-							}
-						}
-						if(exists == false){
-							includedFields.push(manualEntry);
-						}
-					}
-					var includedFieldsForRallyQuery = [];
-					for(var k=0;k<includedFields.length;k++){
-						var field = includedFields[k].dataIndex;
-						includedFieldsForRallyQuery.push(field);
-					}
-					if(storyList.length > 0){
-						var dataStory = collectAcceptedDefectsData(storyList,includedFields,includedFieldsForRallyQuery);
-						renderContent(dataStory,'report-output-container');
-						messageFn.exit();
-					}else{
-						renderContent({ html : '<p>' + labels.errors.zeroResults + '</p>' },'report-output-container');
-						messageFn.exit();
-					}
-				},
-				storyChanges : function(storyList){
+			/*	storyChanges : function(storyList){
 					// loading message
 					messageFn.progressBox(labels.messages.gettingStoryDetails);
 
@@ -1834,7 +1887,7 @@
 					function ajaxLoop(n){
 						// collecting status information for each object in the list
 						Ext.Ajax.request({
-							url : '/analytics/v2.0/service/rally/workspace/' + workspace_oid + '/artifact/snapshot/query.js',
+							url : '/analytics/v2.0/service/rally/workspace/' + __WORKSPACE_OID__ + '/artifact/snapshot/query.js',
 							jsonData : {
 								'find' : {
 									'ObjectID' : { '$in' : objectIdArray },
@@ -1892,7 +1945,7 @@
 					}
 
 					// collect the time stamp to report on
-					var snapshotTime = utilityFn.dates.toQueryable(Ext.getCmp('HiddenDateTimeObj').getValue());
+					var snapshotTime = utilityFn.dates.toISO(Ext.getCmp('HiddenDateTimeObj').getValue());
 
 					var manualCols = Ext.getCmp('ColumnPicker').getValue();
 					var requiredFields = [
@@ -1957,7 +2010,7 @@
 					function ajaxLoop(n){
 						// collecting status information for each object in the list
 						Ext.Ajax.request({
-							url : '/analytics/v2.0/service/rally/workspace/' + workspace_oid + '/artifact/snapshot/query.js',
+							url : '/analytics/v2.0/service/rally/workspace/' + __WORKSPACE_OID__ + '/artifact/snapshot/query.js',
 							jsonData : {
 								'find' : {
 									'ObjectID' : { '$in' : objectIdArray },
@@ -1996,6 +2049,27 @@
 							}
 						});
 					}
+				},
+			*/	snapshot : function(lookbackObj,callback){
+					//console.log(lookbackObj);
+					Ext.Ajax.request({
+						url : '/analytics/v2.0/service/rally/workspace/' + __WORKSPACE_OID__ + '/artifact/snapshot/query.js',
+						jsonData : {
+							'find' : lookbackObj.find,
+							'fields' : lookbackObj.fields
+						},
+						method : 'POST',
+						headers : {
+							'Content-Type' : 'application/json'
+						},
+						success : function(response){
+							callback(JSON.parse(response.responseText));
+						},
+						failure : function(response){
+							messageFn.alertBox(JSON.parse(response.responseText).Errors);
+							return false;
+						}
+					});
 				},
 				taskHours :  function(storyList,dates){
 					// loading message
@@ -2038,7 +2112,7 @@
 
 						if(!skipDay){
 							Ext.Ajax.request({
-								url : '/analytics/v2.0/service/rally/workspace/' + workspace_oid + '/artifact/snapshot/query.js',
+								url : '/analytics/v2.0/service/rally/workspace/' + __WORKSPACE_OID__ + '/artifact/snapshot/query.js',
 								jsonData : {
 									'find' : {
 										'$or' : objectIdArray,
@@ -2135,8 +2209,8 @@
 						}
 
 						// Manual columns and values
-						lineItem['DaysActive'] = utilityFn.dates.daysBetween([lineItem.CreationDate,lineItem.AcceptedDate]);
-						lineItem['Url'] = '<a href="/#/' + project_oid + 'd/search?keywords=' +  lineItem.FormattedID + '" target="_blank">' +  lineItem.FormattedID + '</a>';
+						lineItem['DaysActive'] = utilityFn.dates.daysBetween([lineItem.CreationDate,lineItem.ClosedDate]);
+						lineItem['Url'] = '<a href="/#/' + __PROJECT_OID__ + 'd/search?keywords=' +  lineItem.FormattedID + '" target="_blank">' +  lineItem.FormattedID + '</a>';
 
 						// Push the object into the return array
 						result.values.push(lineItem);
@@ -2195,16 +2269,30 @@
 						}
 
 						// Manual columns and values
-						lineItem['Url'] = '<a href="/#/' + project_oid + 'd/search?keywords=' +  lineItem.FormattedID + '" target="_blank">' +  lineItem.FormattedID + '</a>';
+						lineItem['Url'] = '<a href="/#/' + __PROJECT_OID__ + 'd/search?keywords=' +  lineItem.FormattedID + '" target="_blank">' +  lineItem.FormattedID + '</a>';
 
 						// Push the object into the return array
 						result.values.push(lineItem);
 					}
-					console.log(result);
 					return result;
 				},
 				taskDefaults : function(){
 					var result = this._getDataFromSelectedCols('ColumnPicker');
+					/*
+						_getDataFromSelectedCols : function(id){
+							var selectedCols = (Ext.getCmp(id)) ? Ext.getCmp(id).getValue() : [];
+							var result = {
+								headers : [],
+								fields : [],
+								values : []
+							};
+							for(var i=0;i<selectedCols.length;i++){
+								result.headers.push({ text : selectedCols[i].data.displayName, dataIndex : selectedCols[i].data.name});
+								result.fields.push(selectedCols[i].data.name);
+							}
+							return result;
+						},
+					*/
 					var templateItems = [
 						{ text : 'Display Color', dataIndex : 'DisplayColor'},
 						{ text : 'Expedite', dataIndex : 'Expedite' },
@@ -2236,6 +2324,7 @@
 						{ Name : 'Create/modify web services	', Description : '' },
 						{ Name : 'Create/modify web pages	HTML, CSS, JS', Description : '' },
 						{ Name : 'Create/modify View Settings module', Description : '' },
+						{ Name : 'Check-in Demo', Description : 'Demo of feature before Code Complete for the story' },
 						{ Name : 'Internal code review', Description : '' },
 						{ Name : 'Deployment readiness', Description : 'Documentation, risks, deployment requirements, etc.' },
 						{ Name : 'Dev to QA/PM Hand-off	', Description : '' }
@@ -2400,7 +2489,7 @@
 							}
 						}
 					});
-					//href : '<a href="/#/' + project_oid + 'd/search?keywords=' +  dataObj[i].FormattedID + '" target="_blank">' +  dataObj[i].FormattedID + '</a>'
+					//href : '<a href="/#/' + __PROJECT_OID__ + 'd/search?keywords=' +  dataObj[i].FormattedID + '" target="_blank">' +  dataObj[i].FormattedID + '</a>'
 					var gridPanel = Ext.create('Ext.grid.Panel',{
 						title : 'Changed to <strong>' + formattedData[i].state + '</strong> state',
 						store : 'stateChangeDataStore_' + i,
@@ -2624,6 +2713,176 @@
 					return returnObj;
 				}
 			};
+
+			/* Control for rendering page content */
+			function renderContent(objects,location){
+				Ext.getCmp(location).removeAll();
+				if(objects){ Ext.getCmp(location).add(objects); }
+				Ext.getCmp(location).doLayout();
+			}
+
+
+			/* Custom functions */
+			var messageFn = {
+				alertBox : function(inputMessage){
+					Ext.Msg.alert('Error',inputMessage);
+				},
+				progressBox : function(inputMessage){
+					Ext.MessageBox.show({
+						msg : inputMessage,
+						width : 300,
+						wait : true,
+						waitConfig : { interval : 200 },
+						progress : true
+					});
+				},
+				exit : function(){
+					Ext.MessageBox.hide();
+				}
+			};
+			var utilityFn = {
+				encodeParams :  function(inputObj){
+					var size = Object.keys(inputObj).length;
+					if(size > 0){
+						var resultString = '?';
+						var count = 0;
+						for(var key in inputObj){
+							var delim = (count < (size-1)) ? '&' : '';
+							resultString += key + '=' + inputObj[key] + delim;
+							count++;
+						}
+						return resultString;
+					}else{
+						return false;
+					}
+				},
+				errorsListHtml : function(inputArray){
+					var plural = (inputArray.length == 1) ? '' : 's';
+					var errorMessage = '';
+						errorMessage += 'Please correct the following issue' + plural + ':';
+						errorMessage += '<ol>';
+					for(var i=0;i<inputArray.length;i++){
+						errorMessage += '<li>';
+						errorMessage += inputArray[i];
+						errorMessage += '</li>';
+					}
+						errorMessage += '</ol>';
+					return errorMessage;
+				},
+				dates : {
+					doubleDigitMonthDay : function(input){
+						var inputAsDate = new Date(input);
+						var year = inputAsDate.getFullYear();
+						var month = inputAsDate.getMonth()+1;
+						var date = inputAsDate.getDate();
+
+						var arrayMonth = (month.toString().length < 2) ? '0' + month : month;
+						var arrayDate = (date.toString().length < 2) ? '0' + date : date;
+
+						return [year,arrayMonth,arrayDate];
+					},
+					daysBetween : function(dateArray){
+						if(dateArray.length == 2){
+							var startingDate = utilityFn.dates.toMorning(dateArray[0]);
+							var endingDate = utilityFn.dates.toMorning(dateArray[1]);
+							var difference = (endingDate-startingDate)/86400000;
+							return difference;
+						}else{
+							return false;
+						}
+					},
+					getDateEnds : function(boundaryArray,includeWeekends){
+						var startDate = utilityFn.dates.toEvening(boundaryArray[0]);
+						var finalDate = boundaryArray[1];
+						var dateList = [];
+
+						var currentDate = startDate;
+						while(currentDate <= finalDate){
+							if(includeWeekends == true){
+								dateList.push(utilityFn.dates.toEvening(currentDate));
+							}else{
+								var dayOfWeek = currentDate.getDay();
+								if((dayOfWeek > 0)&&(dayOfWeek < 6)){
+									dateList.push(utilityFn.dates.toEvening(currentDate));
+								}
+							}
+							currentDate = currentDate.addDays(1);
+						}
+						return dateList;
+					},
+					toMorning : function(input){
+						var date = new Date(input);
+						date.setHours(0);
+						date.setMinutes(0);
+						date.setSeconds(1);
+						date.setMilliseconds(0);
+						return date;
+					},
+					toEvening : function(input){
+						var date = new Date(input);
+						date.setHours(23);
+						date.setMinutes(59);
+						date.setSeconds(59);
+						date.setMilliseconds(999);
+						return date;
+					},
+					toISO : function(input){
+						var inputAsDate = new Date(input);
+					/*	var dateArray = this.doubleDigitMonthDay(inputAsDate);
+						var hours = inputAsDate.getHours();
+						var minutes = inputAsDate.getMinutes();
+						var seconds = inputAsDate.getSeconds();
+						var formattedDate = dateArray.join('-');
+							formattedDate += 'T';
+							formattedDate += hours + ':' + minutes + ':' + seconds + '.000';
+							formattedDate += 'Z';
+						return formattedDate; // Format: YYYY-MM-DDTHH:MM:SS.SSSZ
+					*/
+						return inputAsDate.toISOString();
+					},
+					toSortable : function(input){
+						var dateArray = this.doubleDigitMonthDay(new Date(input));
+						return dateArray.join('/');
+					}
+				},
+				query : {
+					create : function(queryItems){
+						var queryStr = '';
+						var openingStr = '';
+						for(var i=0;i<queryItems.length;i++){
+							openingStr += (i == 0) ? '' : '(';
+							queryStr += '(';
+							queryStr += queryItems[i].key + ' ' + queryItems[i].operand + ' "' + queryItems[i].value + '"';
+							queryStr += (i == 0) ? ')' : '))';
+							queryStr += (i !== queryItems.length-1) ? ' ' + queryItems[i].operator + ' ' : '';
+						}
+						return openingStr + queryStr;
+					}
+				}
+			};
+			Date.prototype.addDays = function(days){
+				// To support the utility function for creating a "dates between" array
+				var date = new Date(this.valueOf());
+				date.setDate(date.getDate() + days);
+				return date;
+			}
+			Array.prototype.unique = function() {
+				var unique = [];
+				for(var i=0;i<this.length;i++){
+					var current = this[i];
+					if(unique.indexOf(current) < 0){ unique.push(current); }
+				}
+				return unique;
+			}
+			Array.prototype.trimArray = function() {
+				var trimmed = [];
+				for(var i=0;i<this.length;i++){
+					var current = this[i];
+					if(current.length > 0){ trimmed.push(current); }
+				}
+				return trimmed;
+			}
+
 		</script>
 		<style>
 			body *{
@@ -2646,7 +2905,7 @@
 			input[type="text"][readonly]{
 				background-color:#efefef;
 			}
-			input[type="text"][role="combobox"][readonly]{
+			input[type="text"][readonly][role="combobox"]{
 				background-color:#ffffff;
 			}
 
@@ -2668,6 +2927,7 @@
 				#report-selection-container label{
 					font-weight:900;
 					font-size:18px;
+					line-height:18px;
 				}
 
 			#report-input-container{
