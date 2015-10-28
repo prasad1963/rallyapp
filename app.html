@@ -1469,13 +1469,6 @@
 							// Create lookback search settings
 							var hoursVar = (dataObj.type === 'tasks') ? 'ToDo' : 'TaskRemainingTotal';
 							//var fieldsVar = ['ObjectID','Name','FormattedID'];
-							var lookbackObj = {
-								fields : ['ObjectID','Name','FormattedID','TaskRemainingTotal','ToDo'],
-								find : {
-									'$or' : dataObj.objectIDs,
-									[hoursVar] : { '$gt' : 0 }
-								}
-							};
 
 							// Set up couter to capture all daily entries
 							var counterStep = 0;
@@ -1484,18 +1477,24 @@
 							// Collect Daily Burndown data, grouped by sortable date
 							var resultsArray = [];
 							for(var d=0;d<dataObj.dates.ends.length;d++){
-								lookbackObj.find['__At'] = utilityFn.dates.toISO(dataObj.dates.ends[d]);
+								var lookbackObj = {
+									fields : ['ObjectID','Name','FormattedID','TaskRemainingTotal','ToDo'],
+									find : {
+										'__At' : utilityFn.dates.toISO(dataObj.dates.ends[d]),
+										'$or' : dataObj.objectIDs,
+										[hoursVar] : { '$gt' : 0 }
+									}
+								};
 								lookback.snapshot(lookbackObj,function(result){
-									console.log(result);
-									//var displayDate = utilityFn.dates.toSortable(dataObj.dates.ends[d]);
-									var displayDate = dataObj.dates.ends[d];
 									var hoursRemaining = 0;
 									for(var k=0;k<result.Results.length;k++){
 										var storyHoursRemaining = result.Results[k][hoursVar];
-										console.log(storyHoursRemaining);
-										hoursRemaining+storyHoursRemaining;
+										hoursRemaining = hoursRemaining+storyHoursRemaining;
 									}
-									resultsArray.push({ date : displayDate, hours : hoursRemaining });
+									resultsArray.push({
+										date : utilityFn.dates.toSortable(result.CustomSettings.find['__At']),
+										hours : hoursRemaining
+									});
 									counterStep++;
 									if(counterStep >= counterStop){ collectDayData(resultsArray); }
 								});
@@ -2063,7 +2062,9 @@
 							'Content-Type' : 'application/json'
 						},
 						success : function(response){
-							callback(JSON.parse(response.responseText));
+							var returnObj = JSON.parse(response.responseText);
+							returnObj.CustomSettings = lookbackObj;
+							callback(returnObj);
 						},
 						failure : function(response){
 							messageFn.alertBox(JSON.parse(response.responseText).Errors);
@@ -2111,6 +2112,7 @@
 						}
 
 						if(!skipDay){
+							console.log(true);
 							Ext.Ajax.request({
 								url : '/analytics/v2.0/service/rally/workspace/' + __WORKSPACE_OID__ + '/artifact/snapshot/query.js',
 								jsonData : {
